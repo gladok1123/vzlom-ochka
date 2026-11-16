@@ -29,6 +29,15 @@
 #include <winrt/Windows.Media.Control.h>
 #include <winrt/Windows.Storage.Streams.h>
 
+// Одна медиасессия Windows (для выбора «процесса» в настройках плеера).
+struct SourceEntry {
+    std::wstring appId;   // SourceAppUserModelId: chrome.exe, msedge.exe и т.п.
+    std::wstring label;   // человекочитаемое имя: Chrome, Firefox...
+    std::wstring title;   // что сейчас в этой сессии играет
+    std::wstring artist;
+    bool playing = false;
+};
+
 struct MediaState {
     bool hasSession = false;
 
@@ -49,16 +58,21 @@ struct MediaState {
     uint64_t coverVersion = 0;
 
     bool isPlaying = false;
-    int64_t positionMs = 0;
+    int64_t positionMs = 0;     // позиция на момент последнего обновления SMTC
     int64_t durationMs = 0;
+    // Момент последнего обновления позиции в тиках UTC (100 нс, эпоха 1601).
+    // По нему UI считает реальную позицию: 0 = источник не сообщает время.
+    int64_t lastUpdatedTicks = 0;
+    // Скорость воспроизведения (1.0 — обычная).
+    double playbackRate = 1.0;
 
     bool canPlayPause = false;
     bool canNext = false;
     bool canPrev = false;
     bool canSeek = false;
 
-    // Все доступные сессии (для переключателя источника в UI).
-    std::vector<std::wstring> availableSources;
+    // Все доступные сессии: из них UI строит список выбора источника.
+    std::vector<SourceEntry> sources;
 };
 
 class SmtcClient {

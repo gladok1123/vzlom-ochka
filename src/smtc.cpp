@@ -187,10 +187,25 @@ MediaState SmtcClient::Poll() {
         return st;
     }
     for (auto const& s : sessions) {
+        SourceEntry entry;
         try {
-            st.availableSources.push_back(ToWString(s.SourceAppUserModelId()));
+            entry.appId = ToWString(s.SourceAppUserModelId());
+        } catch (...) {
+            continue;
+        }
+        entry.label = PrettySourceName(entry.appId);
+        try {
+            entry.playing = (s.GetPlaybackInfo().PlaybackStatus() ==
+                             GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing);
         } catch (...) {
         }
+        try {
+            auto props = s.TryGetMediaPropertiesAsync().get();
+            entry.title = ToWString(props.Title());
+            entry.artist = ToWString(props.Artist());
+        } catch (...) {
+        }
+        st.sources.push_back(std::move(entry));
     }
 
     Session session = PickSession(manager);
@@ -250,8 +265,21 @@ MediaState SmtcClient::Poll() {
         st.durationMs = (endMs > startMs) ? (endMs - startMs) : endMs;
         if (st.durationMs < 0)
             st.durationMs = 0;
-        st.canSeek = st.durationMs > 0;
+        // Момент, к которому относится Position. Именно по нему UI считает
+        // «сколько прошло» — иначе позиция отстаёт на весь интервал опроса.
+        st.lastUpdatedTicks = timeline.LastUpdatedTime().time_since_epoch().count();
     } catch (...) {
+    }
+
+    // Скорость воспроизведения и возможность перемотки.
+    try {
+        auto info = session.GetPlaybackInfo();
+        const double rate = info.PlaybackRate();
+        st.playbackRate = (rate > 0.05 && rate < 8.0) ? rate : 1.0;
+        auto controls = info.Controls();
+        st.canSeek = controls.IsPlaybackPositionEnabled() && st.durationMs > 0;
+    } catch (...) {
+        st.canSeek = st.durationMs > 0;
     }
 
     st.coverBytes = lastCoverBytes_;

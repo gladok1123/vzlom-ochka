@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(YandexMusicPlayer VERSION 1.1.0 LANGUAGES CXX)
+project(YandexMusicPlayer VERSION 1.2.0 LANGUAGES CXX)
 
 # C++17 + /await — режим, под который рассчитаны заголовки C++/WinRT из
 # Windows SDK (они же ставит Visual Studio 2022).
@@ -11,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_executable(YandexMusicPlayer WIN32
     src/main.cpp
     src/smtc.cpp
+    src/webview.cpp
     resources.rc   # иконка + версия в свойствах exe
 )
 

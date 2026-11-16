@@ -15,6 +15,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # SDK WebView2 (тонкая обёртка над системным Edge) — качаем заранее,
+      # чтобы CMake не зависел от сети внутри configure.
+      - name: Fetch WebView2 SDK
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build/webview2 | Out-Null
+          $versions = @("1.0.2903.40","1.0.2592.51","1.0.2277.86","1.0.1774.30")
+          foreach ($v in $versions) {
+            if (Test-Path build/webview2/build/native/include/WebView2.h) { break }
+            try {
+              Invoke-WebRequest -UseBasicParsing -OutFile webview2.nupkg `
+                -Uri "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/$v"
+              Expand-Archive -Path webview2.nupkg -DestinationPath build/webview2 -Force
+            } catch {
+              Write-Host "::warning::WebView2 $v не скачался"
+            }
+          }
+          if (Test-Path build/webview2/build/native/include/WebView2.h) {
+            Write-Host "::notice::WebView2 SDK готов"
+          } else {
+            Write-Host "::warning::Соберу без WebView2 (разворот откроет браузер)"
+          }
+
       # Ошибки компиляции выводятся аннотациями ::error:: — чтобы их было
       # видно прямо в интерфейсе Actions, без вычитки полного лога.
       - name: Configure (CMake, x64)
