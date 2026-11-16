@@ -23,7 +23,10 @@ target_compile_definitions(YandexMusicPlayer PRIVATE
 )
 
 if(MSVC)
-    target_compile_options(YandexMusicPlayer PRIVATE /W4 /permissive- /utf-8 /await)
+        # /permissive- НЕ включаем: с ним MSVC не может инстанцировать методы
+    # WinRT-коллекций (C3779 "a function that returns 'auto' cannot be used
+    # before it is defined"), а без него — собирается.
+    target_compile_options(YandexMusicPlayer PRIVATE /W4 /utf-8 /await)
     # Заголовкам C++/WinRT из SDK нужны <experimental/coroutine> и /await;
     # в MSVC 14.4x это помечено устаревшим — гасим предупреждение.
     target_compile_definitions(YandexMusicPlayer PRIVATE
