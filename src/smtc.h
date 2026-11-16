@@ -20,6 +20,12 @@
 #include <string>
 #include <vector>
 
+// Обязательный набор: без Windows.Foundation.Collections.h объявления
+// методов WinRT-коллекций (Size/GetAt/begin) остаются без определений, и
+// MSVC выдаёт невнятное "a function that returns 'auto' cannot be used
+// before it is defined" (C3779).
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Media.Control.h>
 #include <winrt/Windows.Storage.Streams.h>
 

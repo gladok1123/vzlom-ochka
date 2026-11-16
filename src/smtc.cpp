@@ -102,22 +102,6 @@ std::vector<uint8_t> ReadThumbnail(
     return out;
 }
 
-// WinRT-коллекции (IVectorView и т.п.) в заголовках из Windows SDK объявляют
-// Size()/GetAt() с auto-возвратом, и MSVC 14.5x отказывается использовать их
-// прямо в обычной (не шаблонной) функции: "a function that returns 'auto'
-// cannot be used before it is defined". Копирование через шаблон-обёртку
-// заставляет компилятор инстанцировать их уже после того, как класс собран.
-template <typename Collection>
-auto ToVector(Collection const& collection) {
-    using Item = decltype(collection.GetAt(0));
-    std::vector<Item> items;
-    const uint32_t count = collection.Size();
-    items.reserve(count);
-    for (uint32_t i = 0; i < count; ++i)
-        items.push_back(collection.GetAt(i));
-    return items;
-}
-
 } // namespace
 
 bool SmtcClient::Initialize() {
@@ -150,7 +134,7 @@ SmtcClient::Session SmtcClient::FindSession(const std::wstring& appId) {
     if (!manager_)
         return nullptr;
     try {
-        for (auto const& s : ToVector(manager_.GetSessions())) {
+        for (auto const& s : manager_.GetSessions()) {
             if (ToWString(s.SourceAppUserModelId()) == appId)
                 return s;
         }
@@ -173,7 +157,7 @@ SmtcClient::Session SmtcClient::PickSession(Manager& manager) {
     }
     // 3) Первая играющая сессия, 4) иначе — просто первая доступная.
     try {
-        auto sessions = ToVector(manager.GetSessions());
+        auto sessions = manager.GetSessions();
         for (auto const& s : sessions) {
             try {
                 if (s.GetPlaybackInfo().PlaybackStatus() ==
@@ -182,8 +166,8 @@ SmtcClient::Session SmtcClient::PickSession(Manager& manager) {
             } catch (...) {
             }
         }
-        if (!sessions.empty())
-            return sessions.front();
+        if (sessions.Size() > 0)
+            return sessions.GetAt(0);
     } catch (...) {
     }
     return nullptr;
@@ -197,7 +181,8 @@ MediaState SmtcClient::Poll() {
     Manager manager = manager_;
     std::vector<Session> sessions;
     try {
-        sessions = ToVector(manager.GetSessions());
+        for (auto const& s : manager.GetSessions())
+            sessions.push_back(s);
     } catch (...) {
         return st;
     }
@@ -371,7 +356,7 @@ std::wstring SmtcClient::CycleSource() {
         return {};
     std::vector<std::wstring> sources;
     try {
-        for (auto const& s : ToVector(manager_.GetSessions()))
+        for (auto const& s : manager_.GetSessions())
             sources.push_back(ToWString(s.SourceAppUserModelId()));
     } catch (...) {
         return {};
