@@ -37,12 +37,12 @@ Windows SMTC  ──►  YandexMusicPlayer.exe (Win32 + Direct2D + C++/WinRT)
 
 ### Вариант 1 — скачать готовый exe
 
-Откройте вкладку **Actions** этого репозитория → последний успешный запуск
-`build` → артефакт **YandexMusicPlayer-x64** → внутри `YandexMusicPlayer.exe`.
-Сохраните куда угодно и запустите: установка не нужна.
+Готовый файл лежит в [Releases](https://github.com/gladok1123/vzlom-ochka/releases/latest):
+**`YandexMusicPlayer.exe`** (~253 КБ). Сохраните куда угодно и запустите —
+установка, рантаймы и VC++ Redistributable не нужны.
 
-Если сборка запускалась с тегом вида `v1.0.0`, тот же exe лежит в разделе
-**Releases**.
+Свежие сборки каждой версии также лежат в **Actions** → запуск `build` →
+артефакт `YandexMusicPlayer-x64`.
 
 ### Вариант 2 — собрать самому
 
