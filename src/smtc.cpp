@@ -144,10 +144,16 @@ SmtcClient::Session SmtcClient::FindSession(const std::wstring& appId) {
 }
 
 SmtcClient::Session SmtcClient::PickSession(Manager& manager) {
-    // 1) Ручной выбор пользователя, если такая сессия ещё жива.
+    // Выбранная сессия удерживается по идентичности WinRT, а не по имени exe.
+    if (!selectedKey_.empty()) {
+        for (const auto& item : knownSessions_)
+            if (item.first == selectedKey_) return item.second;
+        return nullptr;
+    }
     if (!preferredSource_.empty()) {
         if (auto s = FindSession(preferredSource_))
             return s;
+        return nullptr;
     }
     // 2) Системная "текущая" сессия (та, к которой привязаны медиа-клавиши).
     try {
@@ -186,8 +192,20 @@ MediaState SmtcClient::Poll() {
     } catch (...) {
         return st;
     }
-    for (auto const& s : sessions) {
+    std::vector<std::pair<std::wstring, Session>> updated;
+    for (auto const& session : sessions) {
+        std::wstring key;
+        for (const auto& old : knownSessions_) {
+            if (old.second == session) { key = old.first; break; }
+        }
+        if (key.empty()) key = std::to_wstring(++nextSessionId_);
+        updated.emplace_back(key, session);
+    }
+    knownSessions_ = std::move(updated);
+    for (auto const& item : knownSessions_) {
+        auto const& s = item.second;
         SourceEntry entry;
+        entry.key = item.first;
         try {
             entry.appId = ToWString(s.SourceAppUserModelId());
         } catch (...) {
@@ -259,7 +277,7 @@ MediaState SmtcClient::Poll() {
     // Таймлайн: позиция и длительность.
     try {
         auto timeline = session.GetTimelineProperties();
-        st.positionMs = ToMs(timeline.Position());
+        st.positionMs = ToMs(timeline.Position()) - ToMs(timeline.StartTime());
         const int64_t endMs = ToMs(timeline.EndTime());
         const int64_t startMs = ToMs(timeline.StartTime());
         st.durationMs = (endMs > startMs) ? (endMs - startMs) : endMs;
@@ -368,8 +386,8 @@ bool SmtcClient::Seek(int64_t positionMs) {
             return false;
         // TryChangePlaybackPositionAsync принимает число 100-нс тиков,
         // то есть миллисекунды, умноженные на 10 000.
-        s.TryChangePlaybackPositionAsync(positionMs * 10000).get();
-        return true;
+        const auto start = s.GetTimelineProperties().StartTime().count();
+        return s.TryChangePlaybackPositionAsync(start + positionMs * 10000).get();
     } catch (...) {
         return false;
     }
@@ -377,6 +395,12 @@ bool SmtcClient::Seek(int64_t positionMs) {
 
 void SmtcClient::SetPreferredSource(const std::wstring& appId) {
     preferredSource_ = appId;
+    selectedKey_.clear();
+}
+
+void SmtcClient::SelectSession(const std::wstring& key) {
+    selectedKey_ = key;
+    preferredSource_.clear();
 }
 
 std::wstring SmtcClient::CycleSource() {

@@ -117,6 +117,8 @@ POINT g_lastMouse{};
 // Выбор источника ("какого именно процесса слушаем").
 bool g_pickerOpen = false;
 int g_pickerHover = -1;
+size_t g_pickerOffset = 0;
+std::wstring g_selectedSession;
 
 bool g_trayAdded = false;
 
@@ -136,7 +138,7 @@ int64_t NowUtcTicks() {
     return static_cast<int64_t>(u.QuadPart);
 }
 
-std::wstring TrackKey(const MediaState& st) { return st.title + L"\n" + st.artist; }
+std::wstring TrackKey(const MediaState& st) { return st.sourceAppId + L"\n" + st.title + L"\n" + st.artist; }
 
 float EaseOutCubic(float t) {
     const float u = 1.0f - t;
@@ -454,7 +456,9 @@ PickerLayout ComputePicker() {
     PickerLayout P;
     const Layout L = ComputeMiniLayout();
     const float s = L.scale;
-    const size_t count = std::min<size_t>(g_uiState.sources.size(), 4);
+    const size_t available = g_uiState.sources.size();
+    if (g_pickerOffset >= available) g_pickerOffset = available > 4 ? available - 4 : 0;
+    const size_t count = std::min<size_t>(available - g_pickerOffset, 4);
     const float rowH = 30.0f;
     const float left = 152.0f;
     const float width = (L.w / s) - left - 16.0f;
@@ -791,13 +795,13 @@ void RenderPickerOverlay(const Layout& L) {
     }
 
     for (size_t i = 0; i < P.items.size(); ++i) {
-        const SourceEntry& src = g_uiState.sources[i];
+        const SourceEntry& src = g_uiState.sources[g_pickerOffset + i];
         if (static_cast<int>(i) == g_pickerHover) {
             D2D1_ROUNDED_RECT hr{P.items[i], 7.0f * s, 7.0f * s};
             DrawRoundedRect(hr, g_d2d.hoverBrush.Get(), true);
         }
         const bool selected = (!g_settings.preferredSource.empty() &&
-                               g_settings.preferredSource == src.appId);
+                               g_selectedSession == src.key);
         if (selected) {
             const float cy = (P.items[i].top + P.items[i].bottom) * 0.5f;
             g_d2d.rt->FillEllipse(
@@ -1128,7 +1132,7 @@ void ExecuteCommand(const Command& c) {
         g_smtc.CycleSource();
         break;
     case Cmd::SelectSource:
-        g_smtc.SetPreferredSource(c.text);
+        g_smtc.SelectSession(c.text);
         break;
     }
 }
@@ -1707,10 +1711,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             const PickerLayout P = ComputePicker();
             for (size_t i = 0; i < P.items.size(); ++i) {
                 if (Hit(P.items[i], p)) {
-                    const std::wstring appId = g_uiState.sources[i].appId;
-                    g_settings.preferredSource = appId;
+                    const auto& source = g_uiState.sources[g_pickerOffset + i];
+                    g_selectedSession = source.key;
+                    g_settings.preferredSource = source.appId;
                     settings::Save(g_settings);
-                    PostCommand(Cmd::SelectSource, 0, appId);
+                    PostCommand(Cmd::SelectSource, 0, source.key);
                     g_pickerOpen = false;
                     g_pickerHover = -1;
                     InvalidateRect(hwnd, nullptr, FALSE);
@@ -1765,7 +1770,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SetVolumeFromX(static_cast<float>(p.x));
             return 0;
         }
-        if (HitPadded(L.progress, p, 8.0f * L.scale)) {
+        if (HitPadded(L.progress, p, 8.0f * L.scale) && g_uiState.canSeek) {
             g_dragProgress = true;
             SetCapture(hwnd);
             SetSeekFromX(static_cast<float>(p.x));
@@ -1809,6 +1814,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (g_mode != Mode::Mini)
             return 0;
         const int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+        if (g_pickerOpen) {
+            const size_t maxOffset = g_uiState.sources.size() > 4 ? g_uiState.sources.size() - 4 : 0;
+            if (delta < 0 && g_pickerOffset < maxOffset) ++g_pickerOffset;
+            if (delta > 0 && g_pickerOffset > 0) --g_pickerOffset;
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
         const float step = (delta > 0) ? 0.05f : -0.05f;
         g_volume = std::clamp(g_volume + step, 0.0f, 1.0f);
         volume::SetMaster(g_volume);

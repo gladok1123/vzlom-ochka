@@ -31,6 +31,7 @@
 
 // Одна медиасессия Windows (для выбора «процесса» в настройках плеера).
 struct SourceEntry {
+    std::wstring key;     // уникальный идентификатор текущей SMTC-сессии
     std::wstring appId;   // SourceAppUserModelId: chrome.exe, msedge.exe и т.п.
     std::wstring label;   // человекочитаемое имя: Chrome, Firefox...
     std::wstring title;   // что сейчас в этой сессии играет
@@ -100,6 +101,7 @@ public:
     // Выбрать источник вручную (SourceAppUserModelId).
     // Пустая строка = автоматический выбор (сейчас играющая сессия).
     void SetPreferredSource(const std::wstring& appId);
+    void SelectSession(const std::wstring& key);
     std::wstring PreferredSource() const { return preferredSource_; }
 
     // Переключить источник на следующий доступный (для кнопки в UI).
@@ -116,6 +118,9 @@ private:
     Session PickSession(Manager& manager);
 
     Manager manager_{nullptr};
+    std::vector<std::pair<std::wstring, Session>> knownSessions_;
+    std::wstring selectedKey_;
+    uint64_t nextSessionId_ = 0;
     std::wstring preferredSource_;
     // Кэш последней обложки, чтобы не дёргать thumbnail на каждый опрос.
     std::vector<uint8_t> lastCoverBytes_;
