@@ -26,6 +26,15 @@ jobs:
             exit 1
           }
 
+      - name: Which C++/WinRT headers
+        shell: pwsh
+        run: |
+          if (Test-Path build/cppwinrt/include/winrt/base.h) {
+            Write-Host "::notice::C++/WinRT: заголовки из NuGet"
+          } else {
+            Write-Host "::notice::C++/WinRT: заголовки из Windows SDK (NuGet не скачался)"
+          }
+
       - name: Build
         shell: pwsh
         run: |
