@@ -178,8 +178,8 @@ bool CreateDeviceResources() {
                 f.Get(), ellipsis.GetAddressOf()))) {
             DWRITE_TRIMMING trimming{};
             trimming.granularity = DWRITE_TRIMMING_GRANULARITY_CHARACTER;
-            trimming.sign = L"\x2026";
-            trimming.trimmingSignWidth = 0;
+            trimming.delimiter = 0;
+            trimming.sign = 0x2026; // символ «…» — просто кодовая точка
             f->SetTrimming(&trimming, ellipsis.Get());
         }
         f->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
@@ -249,7 +249,7 @@ void DecodeCover(const std::vector<uint8_t>& bytes, uint64_t version) {
     Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
     if (FAILED(g_wicFactory->CreateFormatConverter(converter.GetAddressOf())))
         return;
-    if (FAILED(converter->Initialize(frame.Get(), GUID_ContainerFormat32bppPBGRA,
+    if (FAILED(converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppPBGRA,
                                      WICBitmapDitherTypeNone, nullptr, 0.0,
                                      WICBitmapPaletteTypeCustom)))
         return;
@@ -461,15 +461,15 @@ void DrawIconVolume(const D2D1_RECT_F& r, ID2D1SolidColorBrush* brush, bool mute
         g_d2d.factory->CreatePathGeometry(arc2.GetAddressOf());
         Microsoft::WRL::ComPtr<ID2D1GeometrySink> s1, s2;
         arc1->Open(s1.GetAddressOf());
-        s1->BeginFigure(D2D1::Point2F(x + w * 0.62f, y + h * 0.32f), D2D1_FIGURE_BEGIN_STROKED);
+        s1->BeginFigure(D2D1::Point2F(x + w * 0.62f, y + h * 0.32f), D2D1_FIGURE_BEGIN_HOLLOW);
         s1->AddArc(D2D1::ArcSegment(D2D1::Point2F(x + w * 0.62f, y + h * 0.68f),
-                                   D2D1::SizeF(w * 0.28f, h * 0.36f), -35.0f, D2D1_SWEEP_DIRECTION_CLOCKWISE));
+                                   D2D1::SizeF(w * 0.28f, h * 0.36f), -35.0f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL));
         s1->EndFigure(D2D1_FIGURE_END_OPEN);
         s1->Close();
         arc2->Open(s2.GetAddressOf());
-        s2->BeginFigure(D2D1::Point2F(x + w * 0.66f, y + h * 0.22f), D2D1_FIGURE_BEGIN_STROKED);
+        s2->BeginFigure(D2D1::Point2F(x + w * 0.66f, y + h * 0.22f), D2D1_FIGURE_BEGIN_HOLLOW);
         s2->AddArc(D2D1::ArcSegment(D2D1::Point2F(x + w * 0.66f, y + h * 0.78f),
-                                   D2D1::SizeF(w * 0.44f, h * 0.56f), -35.0f, D2D1_SWEEP_DIRECTION_CLOCKWISE));
+                                   D2D1::SizeF(w * 0.44f, h * 0.56f), -35.0f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL));
         s2->EndFigure(D2D1_FIGURE_END_OPEN);
         s2->Close();
         g_d2d.rt->DrawGeometry(arc1.Get(), brush, 1.4f);
@@ -485,10 +485,10 @@ void DrawIconRefresh(const D2D1_RECT_F& r, ID2D1SolidColorBrush* brush) {
     g_d2d.factory->CreatePathGeometry(geo.GetAddressOf());
     Microsoft::WRL::ComPtr<ID2D1GeometrySink> sink;
     geo->Open(sink.GetAddressOf());
-    sink->BeginFigure(D2D1::Point2F(cx + rad * 0.7f, cy - rad * 0.7f), D2D1_FIGURE_BEGIN_STROKED);
+    sink->BeginFigure(D2D1::Point2F(cx + rad * 0.7f, cy - rad * 0.7f), D2D1_FIGURE_BEGIN_HOLLOW);
     sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(cx - rad * 0.7f, cy + rad * 0.7f),
                                  D2D1::SizeF(rad * 1.4f, rad * 1.4f), 0.0f,
-                                 D2D1_SWEEP_DIRECTION_CLOCKWISE));
+                                 D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL));
     sink->EndFigure(D2D1_FIGURE_END_OPEN);
     sink->Close();
     g_d2d.rt->DrawGeometry(geo.Get(), brush, 1.5f);
