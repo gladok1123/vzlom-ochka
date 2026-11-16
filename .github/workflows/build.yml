@@ -13,21 +13,6 @@ jobs:
 
       # Ошибки компиляции выводятся аннотациями ::error:: — чтобы их было
       # видно прямо в интерфейсе Actions, без вычитки полного лога.
-      # Заголовки C++/WinRT из Windows SDK устарели и не собираются новым MSVC,
-      # поэтому в CI качаем официальный пакет заранее (CMake увидит готовый
-      # build/cppwinrt и не будет ходить в сеть второй раз).
-      - name: Fetch C++/WinRT (NuGet)
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force build/cppwinrt | Out-Null
-          try {
-            Invoke-WebRequest -UseBasicParsing -OutFile cppwinrt.nupkg `
-              -Uri "https://www.nuget.org/api/v2/package/Microsoft.Windows.CppWinRT/2.0.240111.5"
-            Expand-Archive -Path cppwinrt.nupkg -DestinationPath build/cppwinrt -Force
-          } catch {
-            Write-Host "::warning::C++/WinRT не скачался, сборка пойдёт на SDK-заголовках"
-          }
-
       - name: Configure (CMake, x64)
         shell: pwsh
         run: |

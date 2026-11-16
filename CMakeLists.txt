@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
 project(YandexMusicPlayer VERSION 1.0.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+# C++17 + /await: именно под этот режим рассчитаны заголовки C++/WinRT из
+# Windows SDK. В C++20 они не собираются на новых MSVC (C3779).
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -31,7 +33,7 @@ target_compile_definitions(YandexMusicPlayer PRIVATE
 #
 # Отключить: cmake ... -DCPPWINRT_FROM_NUGET=OFF
 # ---------------------------------------------------------------------------
-option(CPPWINRT_FROM_NUGET "Скачать свежий C++/WinRT с nuget.org" ON)
+option(CPPWINRT_FROM_NUGET "Скачать свежий C++/WinRT с nuget.org" OFF)
 
 set(CPPWINRT_ROOT "${CMAKE_BINARY_DIR}/cppwinrt")
 set(_cppwinrt_versions
@@ -93,7 +95,13 @@ else()
 endif()
 
 if(MSVC)
-    target_compile_options(YandexMusicPlayer PRIVATE /W4 /permissive- /utf-8)
+    target_compile_options(YandexMusicPlayer PRIVATE /W4 /permissive- /utf-8 /await)
+    # MSVC 14.5x считает <experimental/coroutine> (нужен старым заголовкам
+    # C++/WinRT) устаревшим и по умолчанию выдаёт ошибку — глушим предупреждение.
+    target_compile_definitions(YandexMusicPlayer PRIVATE
+        _SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
+        _SILENCE_CXX17_COROUTINE_DEPRECATION_WARNING
+    )
     # Статическая линковка CRT: exe работает без VC++ Redistributable.
     set_property(TARGET YandexMusicPlayer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
