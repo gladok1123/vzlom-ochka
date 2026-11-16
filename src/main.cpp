@@ -844,7 +844,9 @@ void TrayAdd() {
     nid.uID = 1;
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_APP_TRAY;
-    nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+    nid.hIcon = LoadIconW(g_hInst, MAKEINTRESOURCEW(1));
+    if (!nid.hIcon)
+        nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
     wcscpy_s(nid.szTip, L"Яндекс Музыка — плеер");
     Shell_NotifyIconW(NIM_ADD, &nid);
 }
@@ -1168,6 +1170,8 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow) {
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInst;
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wc.hIcon = LoadIconW(hInst, MAKEINTRESOURCEW(1));
+    wc.hIconSm = wc.hIcon;
     wc.hbrBackground = nullptr; // рисуем сами через Direct2D
     wc.lpszClassName = kClassName;
     if (!RegisterClassExW(&wc)) {
@@ -1207,6 +1211,10 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow) {
     }
 
     ::ShowWindow(g_hwnd, SW_SHOW);
+    // Поверх остальных окон: плеер висит в углу экрана и не должен
+    // прятаться за браузером.
+    SetWindowPos(g_hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     (void)nCmdShow;
 
     // Фоновый опрос SMTC + очередь команд.

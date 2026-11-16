@@ -11,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_executable(YandexMusicPlayer WIN32
     src/main.cpp
     src/smtc.cpp
+    resources.rc   # иконка + версия в свойствах exe
 )
 
 target_include_directories(YandexMusicPlayer PRIVATE src)
