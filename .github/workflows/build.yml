@@ -16,11 +16,13 @@ jobs:
       - name: Configure (CMake, x64)
         shell: pwsh
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release 2>&1 |
+          # Генератор не задаём жёстко: пусть CMake возьмёт установленную
+          # Visual Studio (2022 или новее) — иначе сборка падает на раннерах,
+          # где версия другая.
+          cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release 2>&1 |
             Tee-Object -FilePath configure.log
           if ($LASTEXITCODE -ne 0) {
-            Get-Content configure.log | Select-String -Pattern "error|Error" |
-              Select-Object -First 25 | ForEach-Object { Write-Host "::error::$($_.Line)" }
+            Get-Content configure.log -Tail 40 | ForEach-Object { Write-Host "::error::$($_)" }
             exit 1
           }
 
@@ -30,7 +32,7 @@ jobs:
           cmake --build build --config Release 2>&1 | Tee-Object -FilePath build.log
           if ($LASTEXITCODE -ne 0) {
             Get-Content build.log | Select-String -Pattern "error C|error LNK|error MSB|fatal error" |
-              Select-Object -First 25 | ForEach-Object { Write-Host "::error::$($_.Line)" }
+              Select-Object -First 30 | ForEach-Object { Write-Host "::error::$($_.Line)" }
             exit 1
           }
 

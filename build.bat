@@ -25,7 +25,7 @@ if errorlevel 1 (
 )
 
 echo [build] Конфигурация CMake...
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release
 if errorlevel 1 exit /b 1
 
 echo [build] Сборка...
