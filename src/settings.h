@@ -12,7 +12,7 @@ struct Settings {
     // Окно поверх всех остальных.
     bool topmost = false;
     // Окно прикреплено к рабочему столу (как виджет).
-    bool desktopWidget = false;
+    bool desktopWidget = true;
     // Позиция окна.
     bool hasPosition = false;
     int x = 0;
@@ -38,7 +38,7 @@ inline Settings Load() {
     GetPrivateProfileStringW(L"player", L"source", L"", val, MAX_PATH, path.c_str());
     s.preferredSource = val;
     s.topmost = GetPrivateProfileIntW(L"player", L"topmost", 0, path.c_str()) != 0;
-    s.desktopWidget = GetPrivateProfileIntW(L"player", L"desktop", 0, path.c_str()) != 0;
+    s.desktopWidget = GetPrivateProfileIntW(L"player", L"desktop", 1, path.c_str()) != 0;
     s.hasPosition = GetPrivateProfileIntW(L"player", L"haspos", 0, path.c_str()) != 0;
     s.x = static_cast<int>(GetPrivateProfileIntW(L"player", L"x", 0, path.c_str()));
     s.y = static_cast<int>(GetPrivateProfileIntW(L"player", L"y", 0, path.c_str()));

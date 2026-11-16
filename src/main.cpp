@@ -389,10 +389,10 @@ Layout ComputeMiniLayout() {
 
     const float textX = 152.0f;
     // Справа сверху четыре кнопки (развернуть, закрепить, свернуть, закрыть).
-    const float textW = winW - textX - 16.0f - 104.0f;
+    const float textW = winW - textX - 16.0f;
 
     L.cover = R(16, 16, 120, 120);
-    L.title = R(textX, 18, textW, 24);
+    L.title = R(textX, 18, textW - 104, 24);
     L.artist = R(textX, 46, textW, 20);
     L.album = R(textX, 70, textW, 16);
     L.source = R(textX, 92, textW - 24, 16);
@@ -1052,6 +1052,8 @@ void RenderTransition(float t) {
 void Render() {
     if (!CreateDeviceResources())
         return;
+    if (g_d2d.coverBitmapVersion != g_uiState.coverVersion)
+        DecodeCover(g_uiState.coverBytes, g_uiState.coverVersion);
     g_d2d.rt->BeginDraw();
     g_d2d.rt->Clear(D2D1::ColorF(0.07f, 0.07f, 0.09f, 1.0f));
 
@@ -1201,7 +1203,7 @@ void ShowPlayerWindow(bool show) {
 }
 
 void SaveWindowPos() {
-    if (g_desktopWidget || g_mode != Mode::Mini || g_anim.active)
+    if (g_mode != Mode::Mini || g_anim.active)
         return;
     RECT rc{};
     if (!GetWindowRect(g_hwnd, &rc))
@@ -1481,7 +1483,8 @@ void RefreshUiState() {
     g_uiState = std::move(st);
 
     // WebView2 не смог стартовать (нет рантайма) — открываем браузер и назад.
-    if (g_mode == Mode::Expanded && g_webview.IsFailed()) {
+    if (g_mode == Mode::Expanded && !g_anim.active && g_webview.IsFailed()) {
+        MessageBoxW(g_hwnd, L"Не удалось запустить WebView2. Установите Microsoft Edge WebView2 Runtime и попробуйте снова.", L"Яндекс Музыка", MB_ICONWARNING);
         StartTransition(false);
     }
     InvalidateRect(g_hwnd, nullptr, FALSE);
@@ -1535,6 +1538,7 @@ void ShowTrayMenu() {
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_CREATE: {
+        g_hwnd = hwnd;
         // Тёмный заголовок/рамка, скругления Windows 11, тень окна.
         BOOL dark = TRUE;
         DwmSetWindowAttribute(hwnd, 20 /*DWMWA_USE_IMMERSIVE_DARK_MODE*/, &dark, sizeof(dark));
@@ -1620,7 +1624,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (g_dragWindow) {
             POINT cur{};
             GetCursorPos(&cur);
-            SetWindowPos(hwnd, nullptr, cur.x - g_dragOffset.x, cur.y - g_dragOffset.y, 0, 0,
+            POINT target{cur.x - g_dragOffset.x, cur.y - g_dragOffset.y};
+            if (g_desktopWidget) ScreenToClient(GetParent(hwnd), &target);
+            SetWindowPos(hwnd, nullptr, target.x, target.y, 0, 0,
                          SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
             return 0;
         }
@@ -1785,6 +1791,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     }
     case WM_LBUTTONUP:
         CommitSeek();
+        if (g_dragWindow) SaveWindowPos();
         g_dragWindow = false;
         g_dragVolume = false;
         ReleaseCapture();

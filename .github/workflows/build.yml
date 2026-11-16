@@ -27,7 +27,8 @@ jobs:
             try {
               Invoke-WebRequest -UseBasicParsing -OutFile webview2.nupkg `
                 -Uri "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/$v"
-              Expand-Archive -Path webview2.nupkg -DestinationPath build/webview2 -Force
+              Copy-Item webview2.nupkg webview2.zip -Force
+              Expand-Archive -Path webview2.zip -DestinationPath build/webview2 -Force
             } catch {
               Write-Host "::warning::WebView2 $v не скачался"
             }
@@ -43,7 +44,7 @@ jobs:
       - name: Configure (CMake, x64)
         shell: pwsh
         run: |
-          cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release 2>&1 |
+          cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release -DYM_REQUIRE_WEBVIEW2=ON 2>&1 |
             Tee-Object -FilePath configure.log
           if ($LASTEXITCODE -ne 0) {
             Get-Content configure.log -Tail 40 | ForEach-Object { Write-Host "::error::$($_)" }
