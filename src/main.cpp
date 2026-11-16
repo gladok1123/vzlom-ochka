@@ -1217,7 +1217,7 @@ bool ApplyDesktopWidget(bool on, bool persist); // определение ниж
 
 void ApplyTopmost(bool on) {
     if (on && g_desktopWidget)
-        ApplyDesktopWidget(false);
+        ApplyDesktopWidget(false, /*persist=*/true);
     g_topmost = on;
     if (g_desktopWidget) // у дочернего окна рабочего стола topmost не работает
         SetWindowPos(g_hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
