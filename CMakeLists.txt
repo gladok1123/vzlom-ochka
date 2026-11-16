@@ -46,21 +46,38 @@ if(CPPWINRT_FROM_NUGET AND NOT EXISTS "${CPPWINRT_ROOT}/include/winrt/base.h")
         if(EXISTS "${CPPWINRT_ROOT}/include/winrt/base.h")
             break()
         endif()
-        message(STATUS "C++/WinRT: пробую Microsoft.Windows.CppWinRT ${_ver}...")
+        set(_url "https://www.nuget.org/api/v2/package/Microsoft.Windows.CppWinRT/${_ver}")
         set(_nupkg "${CMAKE_BINARY_DIR}/cppwinrt-${_ver}.nupkg")
-        file(DOWNLOAD
-            "https://www.nuget.org/api/v2/package/Microsoft.Windows.CppWinRT/${_ver}"
-            "${_nupkg}"
-            STATUS _dl_status
-            TIMEOUT 120)
+        set(_got FALSE)
+
+        message(STATUS "C++/WinRT: качаю пакет ${_ver}...")
+        # 1) Встроенный загрузчик CMake.
+        file(DOWNLOAD "${_url}" "${_nupkg}" STATUS _dl_status TIMEOUT 120)
         list(GET _dl_status 0 _dl_code)
         if(_dl_code EQUAL 0 AND EXISTS "${_nupkg}")
+            set(_got TRUE)
+        else()
+            # 2) Запасной вариант — curl.exe (есть в Windows 10/11 из коробки):
+            #    у него другой TLS-стек, и он часто проходит там, где падает CMake.
+            find_program(CURL_EXE NAMES curl curl.exe)
+            if(CURL_EXE)
+                message(STATUS "C++/WinRT: CMake не смог, пробую curl...")
+                execute_process(
+                    COMMAND "${CURL_EXE}" -sSL --max-time 120 -o "${_nupkg}" "${_url}"
+                    RESULT_VARIABLE _curl_res)
+                if(_curl_res EQUAL 0 AND EXISTS "${_nupkg}")
+                    set(_got TRUE)
+                endif()
+            endif()
+        endif()
+
+        if(_got)
             file(ARCHIVE_EXTRACT INPUT "${_nupkg}" DESTINATION "${CPPWINRT_ROOT}")
             if(NOT EXISTS "${CPPWINRT_ROOT}/include/winrt/base.h")
                 message(STATUS "C++/WinRT: в пакете ${_ver} нет include/winrt/base.h")
             endif()
         else()
-            message(STATUS "C++/WinRT: пакет ${_ver} не скачался (${_dl_status})")
+            message(STATUS "C++/WinRT: пакет ${_ver} скачать не удалось")
         endif()
     endforeach()
 endif()
