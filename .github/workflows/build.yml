@@ -11,11 +11,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Ошибки компиляции выводятся аннотациями ::error:: — чтобы их было
+      # видно прямо в интерфейсе Actions, без вычитки полного лога.
       - name: Configure (CMake, x64)
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release 2>&1 |
+            Tee-Object -FilePath configure.log
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content configure.log | Select-String -Pattern "error|Error" |
+              Select-Object -First 25 | ForEach-Object { Write-Host "::error::$($_.Line)" }
+            exit 1
+          }
 
       - name: Build
-        run: cmake --build build --config Release
+        shell: pwsh
+        run: |
+          cmake --build build --config Release 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content build.log | Select-String -Pattern "error C|error LNK|error MSB|fatal error" |
+              Select-Object -First 25 | ForEach-Object { Write-Host "::error::$($_.Line)" }
+            exit 1
+          }
 
       - name: Upload exe
         uses: actions/upload-artifact@v4
