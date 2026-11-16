@@ -53,6 +53,15 @@ npm run desktop:install
 npm run package:linux
 ```
 
+## Автоматическая публикация релиза
+
+Workflow `.github/workflows/release.yml` собирает Windows NSIS-установщик и Linux AppImage и прикладывает их к GitHub Release при отправке тега `v*`. Например, для следующей версии:
+
+```sh
+git tag -a v1.0.1 -m "Экран рядом v1.0.1"
+git push origin v1.0.1
+```
+
 ## Другие команды
 
 Локальный режим без Cloudflare Tunnel (удалённый гость подключиться не сможет):
