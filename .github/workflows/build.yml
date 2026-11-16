@@ -36,6 +36,14 @@ jobs:
             exit 1
           }
 
+      # Предупреждения /W4 полезно видеть, но они не должны ронять сборку.
+      - name: Show warnings
+        shell: pwsh
+        run: |
+          $warn = Get-Content build.log | Select-String -Pattern ": warning C"
+          Write-Host "::notice::Предупреждений компилятора: $($warn.Count)"
+          $warn | Select-Object -First 25 | ForEach-Object { Write-Host "::warning::$($_.Line)" }
+
       - name: Upload exe
         uses: actions/upload-artifact@v4
         with:
