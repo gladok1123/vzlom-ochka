@@ -772,6 +772,8 @@ void DrawBackground() {
 }
 
 // --------------------------------------------------------------- Мини-режим
+void DrawWindowButtons(const Layout& L, bool collapsedStyle); // определение ниже
+
 void RenderPickerOverlay(const Layout& L) {
     const PickerLayout P = ComputePicker();
     const float s = L.scale;
@@ -950,11 +952,8 @@ void RenderMini() {
         }
     }
 
-    // --- Кнопки окна ---
-    DrawIconExpand(L.expandBtn, hoverExpand ? g_d2d.whiteBrush.Get() : g_d2d.dimBrush.Get());
-    DrawIconPin(L.pinBtn, g_topmost ? g_d2d.yellowBrush.Get() : g_d2d.dimBrush.Get(), g_topmost);
-    DrawGlyphMin(L.minBtn, hoverMin ? g_d2d.whiteBrush.Get() : g_d2d.dimBrush.Get(), s);
-    DrawGlyphClose(L.closeBtn, hoverClose ? g_d2d.whiteBrush.Get() : g_d2d.dimBrush.Get(), s);
+    // --- Кнопки окна (развернуть, пин, свернуть, закрыть) ---
+    DrawWindowButtons(L, false);
 
     if (g_pickerOpen)
         RenderPickerOverlay(L);
@@ -1214,6 +1213,8 @@ void SaveWindowPos() {
 }
 
 // --------------------------------------------------- Поверх всех / виджет
+bool ApplyDesktopWidget(bool on, bool persist); // определение ниже
+
 void ApplyTopmost(bool on) {
     if (on && g_desktopWidget)
         ApplyDesktopWidget(false);
