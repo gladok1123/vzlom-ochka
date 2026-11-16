@@ -70,6 +70,7 @@ constexpr UINT WM_APP_TRAY = WM_APP + 1;
 constexpr UINT WM_APP_UPDATE = WM_APP + 2;
 constexpr UINT_PTR kTimerVolume = 1;
 constexpr UINT_PTR kTimerAnim = 2;
+constexpr UINT_PTR kTimerTick = 3;
 
 HWND g_hwnd = nullptr;
 HINSTANCE g_hInst = nullptr;
@@ -825,14 +826,8 @@ void RenderMini() {
     const float s = L.scale;
 
     const bool hoverPlay = Hit(L.playBtn, g_lastMouse);
-    const bool hoverPrev = Hit(L.prevBtn, g_lastMouse);
-    const bool hoverNext = Hit(L.nextBtn, g_lastMouse);
     const bool hoverVol = Hit(L.volIcon, g_lastMouse);
     const bool hoverSource = Hit(L.sourceBtn, g_lastMouse);
-    const bool hoverClose = Hit(L.closeBtn, g_lastMouse);
-    const bool hoverMin = Hit(L.minBtn, g_lastMouse);
-    const bool hoverExpand = Hit(L.expandBtn, g_lastMouse);
-    const bool hoverPin = Hit(L.pinBtn, g_lastMouse);
 
     if (!st.hasSession) {
         D2D1_RECT_F noteRect = D2D1::RectF(L.cover.left, L.cover.top + 8 * s, L.cover.right,
@@ -1050,12 +1045,8 @@ void RenderTransition(float t) {
                                 cy + size * 0.5f};
     DrawCoverInto(coverRect, (10.0f + 14.0f * t) * s);
 
-    // Мягкая вуаль, чтобы кадр не «мигал».
-    const float veil = 0.18f * (1.0f - fabsf(2.0f * t - 1.0f));
-    if (veil > 0.001f) {
-        g_d2d.rt->FillRectangle(D2D1::RectF(0, 0, w, h),
-                                g_d2d.blackBrush.Get());
-    }
+    (void)w;
+    (void)h;
 }
 
 // ------------------------------------------------------------------ Draw
@@ -1224,6 +1215,8 @@ void SaveWindowPos() {
 
 // --------------------------------------------------- Поверх всех / виджет
 void ApplyTopmost(bool on) {
+    if (on && g_desktopWidget)
+        ApplyDesktopWidget(false);
     g_topmost = on;
     if (g_desktopWidget) // у дочернего окна рабочего стола topmost не работает
         SetWindowPos(g_hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
@@ -1260,7 +1253,7 @@ HWND FindDesktopWorkerW() {
     return g_foundWorkerW;
 }
 
-bool ApplyDesktopWidget(bool on) {
+bool ApplyDesktopWidget(bool on, bool persist = true) {
     if (on == g_desktopWidget)
         return true;
 
@@ -1296,8 +1289,10 @@ bool ApplyDesktopWidget(bool on) {
         g_desktopWidget = false;
     }
 
-    g_settings.desktopWidget = g_desktopWidget;
-    settings::Save(g_settings);
+    if (persist) {
+        g_settings.desktopWidget = g_desktopWidget;
+        settings::Save(g_settings);
+    }
     InvalidateRect(g_hwnd, nullptr, FALSE);
     return true;
 }
@@ -1338,29 +1333,32 @@ std::wstring WebViewDataDir() {
 void EnsureWebView() {
     if (!WebViewHost::Supported())
         return;
+    if (g_webview.IsFailed())
+        g_webview.ResetFailure();
     const RECT bounds = WebViewBounds();
     g_webview.Create(g_hwnd, bounds, kMusicUrl, WebViewDataDir());
     g_webview.SetBounds(bounds);
     g_webview.SetVisible(true);
+    g_webview.Focus();
 }
 
 void StartTransition(bool expand); // предварительное объявление
 
 void FinishTransition() {
     if (g_anim.expanding) {
+        g_mode = Mode::Expanded;
         if (!WebViewHost::Supported()) {
             // Собрано без WebView2 — открываем страницу в обычном браузере.
             ShellExecuteW(nullptr, L"open", kMusicUrl, nullptr, nullptr, SW_SHOWNORMAL);
             StartTransition(false);
             return;
         }
-        g_mode = Mode::Expanded;
         EnsureWebView();
     } else {
         g_mode = Mode::Mini;
         g_webview.SetVisible(false);
         if (g_settings.desktopWidget && !g_desktopWidget)
-            ApplyDesktopWidget(true);
+            ApplyDesktopWidget(true, /*persist=*/false);
     }
     InvalidateRect(g_hwnd, nullptr, FALSE);
 }
@@ -1405,7 +1403,7 @@ void StartTransition(bool expand) {
     // Встроенный браузер во время анимации прячем: он не умеет полупрозрачность.
     g_webview.SetVisible(false);
     if (expand && g_desktopWidget)
-        ApplyDesktopWidget(false);
+        ApplyDesktopWidget(false, /*persist=*/false);
 
     RECT from{};
     GetWindowRect(g_hwnd, &from);
@@ -1518,6 +1516,10 @@ void ShowTrayMenu() {
         ApplyTopmost(!g_topmost);
         break;
     case 4:
+        if (g_mode != Mode::Mini) {
+            StartTransition(false);
+            break;
+        }
         ApplyDesktopWidget(!g_desktopWidget);
         break;
     case 5:
@@ -1550,6 +1552,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         if (v >= 0.0f)
             g_volume = v;
         SetTimer(hwnd, kTimerVolume, 1000, nullptr);
+        // Полоска прогресса должна ехать плавно, а не рывками раз в 400 мс.
+        SetTimer(hwnd, kTimerTick, 60, nullptr);
         return 0;
     }
     case WM_PAINT: {
@@ -1571,6 +1575,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
         } else if (wParam == kTimerAnim) {
             TickAnimation();
+        } else if (wParam == kTimerTick) {
+            if (g_mode == Mode::Mini && !g_anim.active && !g_dragProgress &&
+                g_uiState.isPlaying) {
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
         }
         return 0;
     }
@@ -1775,8 +1784,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     }
     case WM_LBUTTONUP:
         CommitSeek();
-        if (g_dragVolume)
-            SaveWindowPos();
         g_dragWindow = false;
         g_dragVolume = false;
         ReleaseCapture();
@@ -1850,13 +1857,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         UnregisterHotKey(hwnd, 4);
         KillTimer(hwnd, kTimerVolume);
         KillTimer(hwnd, kTimerAnim);
+        KillTimer(hwnd, kTimerTick);
         g_webview.Destroy();
         SaveWindowPos();
         TrayRemove();
         g_running.store(false);
-        {
-            std::lock_guard<std::mutex> lk(g_cmdMutex);
-        }
         g_cmdCv.notify_all();
         PostQuitMessage(0);
         return 0;

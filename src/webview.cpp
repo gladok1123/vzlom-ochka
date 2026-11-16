@@ -99,6 +99,16 @@ void WebViewHost::Reload() {
         webview_->Reload();
 }
 
+void WebViewHost::Focus() {
+    if (controller_)
+        controller_->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+}
+
+void WebViewHost::ResetFailure() {
+    failed_ = false;
+    ready_ = false;
+}
+
 void WebViewHost::Destroy() {
     if (controller_) {
         controller_->Close();
@@ -126,6 +136,13 @@ void WebViewHost::SetBounds(const RECT&) {}
 void WebViewHost::SetVisible(bool) {}
 
 void WebViewHost::Reload() {}
+
+void WebViewHost::Focus() {}
+
+void WebViewHost::ResetFailure() {
+    failed_ = false;
+    ready_ = false;
+}
 
 void WebViewHost::Destroy() {}
 

@@ -33,6 +33,10 @@ public:
     void SetBounds(const RECT& bounds);
     void SetVisible(bool visible);
     void Reload();
+    void Focus();
+    // Сбросить состояние ошибки, чтобы попробовать снова (например, если
+    // пользователь доустановил рантайм WebView2).
+    void ResetFailure();
 
     bool IsReady() const { return ready_; }
     bool IsFailed() const { return failed_; }
