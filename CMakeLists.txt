@@ -78,11 +78,24 @@ if(CPPWINRT_GENERATE)
 
     if(EXISTS "${_pkg}/bin/cppwinrt.exe" AND NOT EXISTS "${_gen}/winrt/base.h")
         # Windows.winmd — объединённый контракт установленного Windows SDK.
-        set(_sdk_root "$ENV{WindowsSdkDir}")
-        if(NOT _sdk_root)
-            set(_sdk_root "$ENV{ProgramFiles(x86)}/Windows Kits/10")
-        endif()
-        file(GLOB _winmd_candidates "${_sdk_root}/UnionMetadata/*/Windows.winmd")
+        # Путь к Windows SDK: переменная окружения из Developer Command Prompt
+        # либо стандартные каталоги установки. ($ENV{ProgramFiles(x86)} не
+        # используем — CMake путается на скобках в имени переменной.)
+        set(_sdk_roots
+            "$ENV{WindowsSdkDir}"
+            "C:/Program Files (x86)/Windows Kits/10"
+            "$ENV{ProgramFiles}/Windows Kits/10"
+            "$ENV{ProgramW6432}/Windows Kits/10"
+        )
+        set(_winmd_candidates)
+        foreach(_root IN LISTS _sdk_roots)
+            if(_root AND EXISTS "${_root}/UnionMetadata")
+                file(GLOB _found "${_root}/UnionMetadata/*/Windows.winmd")
+                if(_found)
+                    list(APPEND _winmd_candidates ${_found})
+                endif()
+            endif()
+        endforeach()
         if(_winmd_candidates)
             list(SORT _winmd_candidates)
             list(GET _winmd_candidates -1 _winmd)
