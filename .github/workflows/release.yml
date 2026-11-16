@@ -1,0 +1,68 @@
+name: Build desktop releases
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }} app
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Windows
+            os: windows-latest
+            target: win
+            extension: exe
+          - platform: Linux
+            os: ubuntu-latest
+            target: linux
+            extension: AppImage
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install host application dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Install desktop packaging dependencies
+        run: npm --prefix desktop ci
+      - name: Build ${{ matrix.platform }} package
+        run: npm run package:${{ matrix.target }}
+      - name: Upload ${{ matrix.platform }} package
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.target }}
+          path: desktop/release/*.${{ matrix.extension }}
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download platform builds
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: desktop-*
+          merge-multiple: true
+      - name: Create GitHub Release with installers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: gh release create "$TAG" dist/* --repo "$REPO" --title "Экран рядом $TAG" --generate-notes

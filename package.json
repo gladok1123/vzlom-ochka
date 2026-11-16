@@ -1,0 +1,22 @@
+{
+  "name": "ekran-ryadom",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Показ экрана по приглашению: Linux-хост и Windows/Linux-клиент",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "start:local": "node server.js --local-only",
+    "desktop:install": "npm --prefix desktop install",
+    "desktop": "npm --prefix desktop start",
+    "package:win": "npm --prefix desktop run package:win",
+    "package:linux": "npm --prefix desktop run package:linux",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}
