@@ -13,6 +13,18 @@ jobs:
 
       # Ошибки компиляции выводятся аннотациями ::error:: — чтобы их было
       # видно прямо в интерфейсе Actions, без вычитки полного лога.
+      - name: Fetch C++/WinRT package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build/cppwinrt-pkg | Out-Null
+          try {
+            Invoke-WebRequest -UseBasicParsing -OutFile cppwinrt.nupkg `
+              -Uri "https://www.nuget.org/api/v2/package/Microsoft.Windows.CppWinRT/2.0.240111.5"
+            Expand-Archive -Path cppwinrt.nupkg -DestinationPath build/cppwinrt-pkg -Force
+          } catch {
+            Write-Host "::warning::C++/WinRT не скачался, сборка пойдёт на SDK-заголовках"
+          }
+
       - name: Configure (CMake, x64)
         shell: pwsh
         run: |
@@ -29,10 +41,10 @@ jobs:
       - name: Which C++/WinRT headers
         shell: pwsh
         run: |
-          if (Test-Path build/cppwinrt/include/winrt/base.h) {
-            Write-Host "::notice::C++/WinRT: заголовки из NuGet"
+          if (Test-Path build/cppwinrt-generated/winrt/base.h) {
+            Write-Host "::notice::C++/WinRT: сгенерированные заголовки"
           } else {
-            Write-Host "::notice::C++/WinRT: заголовки из Windows SDK (NuGet не скачался)"
+            Write-Host "::notice::C++/WinRT: заголовки из Windows SDK (генерация не удалась)"
           }
 
       - name: Build

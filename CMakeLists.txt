@@ -25,73 +25,90 @@ target_compile_definitions(YandexMusicPlayer PRIVATE
 # ---------------------------------------------------------------------------
 # C++/WinRT.
 #
-# Заголовки winrt/*.h лежат и в Windows SDK, но та версия (2.0.19xxx) писалась
-# под старый MSVC с /await и на актуальных компиляторах падает (C3779 /
-# deprecated <experimental/coroutine>). Поэтому по умолчанию скачиваем
-# официальный пакет Microsoft.Windows.CppWinRT с nuget.org и подставляем его
-# заголовки. Если сети нет — молча остаёмся на SDK-версии.
+# Заголовки winrt/*.h лежат в Windows SDK, но та версия (2.0.19xxx) писалась
+# под MSVC 2019 и на актуальных компиляторах не собирается (C3779: методы
+# с auto-возвратом). Поэтому берём официальный Microsoft.Windows.CppWinRT
+# (он же ставит Visual Studio) и генерируем проекции им — ровно то, что делает
+# MSBuild-интеграция пакета.
 #
-# Отключить: cmake ... -DCPPWINRT_FROM_NUGET=OFF
+# Сети нет? Ставим -DCPPWINRT_GENERATE=OFF и остаёмся на SDK-заголовках
+# (с VS 2022 17.x они работают).
 # ---------------------------------------------------------------------------
-option(CPPWINRT_FROM_NUGET "Скачать свежий C++/WinRT с nuget.org" OFF)
+option(CPPWINRT_GENERATE "Сгенерировать свежие проекции C++/WinRT (нужна сеть)" ON)
 
-set(CPPWINRT_ROOT "${CMAKE_BINARY_DIR}/cppwinrt")
-set(_cppwinrt_versions
-    "2.0.240111.5"
-    "2.0.231028.2"
-    "2.0.220110.5"
-    "2.0.210503.1"
-)
+if(CPPWINRT_GENERATE)
+    set(_cppwinrt_versions "2.0.240111.5" "2.0.231028.2" "2.0.220110.5")
+    set(_pkg "${CMAKE_BINARY_DIR}/cppwinrt-pkg")
+    set(_gen "${CMAKE_BINARY_DIR}/cppwinrt-generated")
 
-if(CPPWINRT_FROM_NUGET AND NOT EXISTS "${CPPWINRT_ROOT}/include/winrt/base.h")
-    foreach(_ver IN LISTS _cppwinrt_versions)
-        if(EXISTS "${CPPWINRT_ROOT}/include/winrt/base.h")
-            break()
-        endif()
-        set(_url "https://www.nuget.org/api/v2/package/Microsoft.Windows.CppWinRT/${_ver}")
-        set(_nupkg "${CMAKE_BINARY_DIR}/cppwinrt-${_ver}.nupkg")
-        set(_got FALSE)
+    if(NOT EXISTS "${_pkg}/bin/cppwinrt.exe")
+        foreach(_ver IN LISTS _cppwinrt_versions)
+            if(EXISTS "${_pkg}/bin/cppwinrt.exe")
+                break()
+            endif()
+            set(_url "https://www.nuget.org/api/v2/package/Microsoft.Windows.CppWinRT/${_ver}")
+            set(_nupkg "${CMAKE_BINARY_DIR}/cppwinrt-${_ver}.nupkg")
+            set(_got FALSE)
 
-        message(STATUS "C++/WinRT: качаю пакет ${_ver}...")
-        # 1) Встроенный загрузчик CMake.
-        file(DOWNLOAD "${_url}" "${_nupkg}" STATUS _dl_status TIMEOUT 120)
-        list(GET _dl_status 0 _dl_code)
-        if(_dl_code EQUAL 0 AND EXISTS "${_nupkg}")
-            set(_got TRUE)
-        else()
-            # 2) Запасной вариант — curl.exe (есть в Windows 10/11 из коробки):
-            #    у него другой TLS-стек, и он часто проходит там, где падает CMake.
-            find_program(CURL_EXE NAMES curl curl.exe)
-            if(CURL_EXE)
-                message(STATUS "C++/WinRT: CMake не смог, пробую curl...")
-                execute_process(
-                    COMMAND "${CURL_EXE}" -sSL --max-time 120 -o "${_nupkg}" "${_url}"
-                    RESULT_VARIABLE _curl_res)
-                if(_curl_res EQUAL 0 AND EXISTS "${_nupkg}")
-                    set(_got TRUE)
+            message(STATUS "C++/WinRT: качаю пакет ${_ver}...")
+            file(DOWNLOAD "${_url}" "${_nupkg}" STATUS _dl_status TIMEOUT 120)
+            list(GET _dl_status 0 _dl_code)
+            if(_dl_code EQUAL 0 AND EXISTS "${_nupkg}")
+                set(_got TRUE)
+            else()
+                # Запасной загрузчик: curl.exe есть в Windows 10/11 из коробки
+                # и использует другой TLS-стек, чем CMake.
+                find_program(CURL_EXE NAMES curl curl.exe)
+                if(CURL_EXE)
+                    message(STATUS "C++/WinRT: CMake не смог, пробую curl...")
+                    execute_process(
+                        COMMAND "${CURL_EXE}" -sSL --max-time 120 -o "${_nupkg}" "${_url}"
+                        RESULT_VARIABLE _curl_res)
+                    if(_curl_res EQUAL 0 AND EXISTS "${_nupkg}")
+                        set(_got TRUE)
+                    endif()
                 endif()
             endif()
-        endif()
 
-        if(_got)
-            file(ARCHIVE_EXTRACT INPUT "${_nupkg}" DESTINATION "${CPPWINRT_ROOT}")
-            if(NOT EXISTS "${CPPWINRT_ROOT}/include/winrt/base.h")
-                message(STATUS "C++/WinRT: в пакете ${_ver} нет include/winrt/base.h")
+            if(_got)
+                file(ARCHIVE_EXTRACT INPUT "${_nupkg}" DESTINATION "${_pkg}")
+            endif()
+        endforeach()
+    endif()
+
+    if(EXISTS "${_pkg}/bin/cppwinrt.exe" AND NOT EXISTS "${_gen}/winrt/base.h")
+        # Windows.winmd — объединённый контракт установленного Windows SDK.
+        set(_sdk_root "$ENV{WindowsSdkDir}")
+        if(NOT _sdk_root)
+            set(_sdk_root "$ENV{ProgramFiles(x86)}/Windows Kits/10")
+        endif()
+        file(GLOB _winmd_candidates "${_sdk_root}/UnionMetadata/*/Windows.winmd")
+        if(_winmd_candidates)
+            list(SORT _winmd_candidates)
+            list(GET _winmd_candidates -1 _winmd)
+            message(STATUS "C++/WinRT: генерирую проекции из ${_winmd}")
+            execute_process(
+                COMMAND "${_pkg}/bin/cppwinrt.exe" -input "${_winmd}" -output "${_gen}"
+                RESULT_VARIABLE _gen_res
+                OUTPUT_VARIABLE _gen_out
+                ERROR_VARIABLE _gen_out)
+            if(NOT _gen_res EQUAL 0)
+                message(STATUS "C++/WinRT: генератор вернул ${_gen_res}: ${_gen_out}")
             endif()
         else()
-            message(STATUS "C++/WinRT: пакет ${_ver} скачать не удалось")
+            message(STATUS "C++/WinRT: Windows.winmd не найден в ${_sdk_root}")
         endif()
-    endforeach()
-endif()
+    endif()
 
-if(EXISTS "${CPPWINRT_ROOT}/include/winrt/base.h")
-    message(STATUS "C++/WinRT: использую заголовки из ${CPPWINRT_ROOT}/include")
-    target_include_directories(YandexMusicPlayer PRIVATE "${CPPWINRT_ROOT}/include")
-else()
-    message(WARNING
-        "C++/WinRT: свежие заголовки не скачались, беру версию из Windows SDK. "
-        "Если сборка упадёт с ошибками в winrt/*.h — нужен доступ в интернет "
-        "или установленный пакет Microsoft.Windows.CppWinRT.")
+    if(EXISTS "${_gen}/winrt/base.h")
+        message(STATUS "C++/WinRT: использую сгенерированные заголовки ${_gen}")
+        target_include_directories(YandexMusicPlayer PRIVATE "${_gen}")
+    else()
+        message(WARNING
+            "C++/WinRT: свежие заголовки получить не удалось, беру версию из "
+            "Windows SDK. С Visual Studio 2022 17.x это работает; на более "
+            "новом MSVC возможны ошибки C3779 в winrt/*.h.")
+    endif()
 endif()
 
 if(MSVC)
