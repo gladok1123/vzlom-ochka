@@ -98,10 +98,30 @@ if(CPPWINRT_GENERATE)
         endforeach()
         if(_winmd_candidates)
             list(SORT _winmd_candidates)
+            # Самая свежая версия SDK: .../UnionMetadata/<версия>/Windows.winmd
             list(GET _winmd_candidates -1 _winmd)
-            message(STATUS "C++/WinRT: генерирую проекции из ${_winmd}")
+            get_filename_component(_sdk_ver_dir "${_winmd}" DIRECTORY)
+            get_filename_component(_sdk_ver "${_sdk_ver_dir}" NAME)
+            get_filename_component(_sdk_union_dir "${_sdk_ver_dir}" DIRECTORY)
+            get_filename_component(_sdk_root "${_sdk_union_dir}" DIRECTORY)
+
+            # Генератору нужны все контракты SDK, а не только объединённый
+            # winmd: иначе часть пространств имён (например Windows.Media)
+            # подсунется из устаревшей SDK-версии заголовков.
+            set(_inputs "${_winmd}")
+            file(GLOB _refs "${_sdk_root}/References/${_sdk_ver}/*/*/*.winmd")
+            if(_refs)
+                list(APPEND _inputs ${_refs})
+            endif()
+
+            set(_args "")
+            foreach(_w IN LISTS _inputs)
+                list(APPEND _args -input "${_w}")
+            endforeach()
+
+            message(STATUS "C++/WinRT: генерирую проекции (${_sdk_ver})...")
             execute_process(
-                COMMAND "${_pkg}/bin/cppwinrt.exe" -input "${_winmd}" -output "${_gen}"
+                COMMAND "${_pkg}/bin/cppwinrt.exe" ${_args} -output "${_gen}"
                 RESULT_VARIABLE _gen_res
                 OUTPUT_VARIABLE _gen_out
                 ERROR_VARIABLE _gen_out)
@@ -109,7 +129,7 @@ if(CPPWINRT_GENERATE)
                 message(STATUS "C++/WinRT: генератор вернул ${_gen_res}: ${_gen_out}")
             endif()
         else()
-            message(STATUS "C++/WinRT: Windows.winmd не найден в ${_sdk_root}")
+            message(STATUS "C++/WinRT: Windows.winmd не найден")
         endif()
     endif()
 
