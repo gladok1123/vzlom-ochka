@@ -7,46 +7,23 @@ on:
 
 jobs:
   windows:
-    runs-on: windows-latest
+    # windows-2022 = Visual Studio 2022 (MSVC 14.4x). Образ windows-latest
+    # сейчас несёт VS 2026, чей компилятор уже не принимает заголовки
+    # C++/WinRT из Windows SDK, — поэтому версия образа зафиксирована.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
       # Ошибки компиляции выводятся аннотациями ::error:: — чтобы их было
       # видно прямо в интерфейсе Actions, без вычитки полного лога.
-      - name: Fetch C++/WinRT package
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force build/cppwinrt-pkg | Out-Null
-          try {
-            Invoke-WebRequest -UseBasicParsing -OutFile cppwinrt.nupkg `
-              -Uri "https://www.nuget.org/api/v2/package/Microsoft.Windows.CppWinRT/2.0.240111.5"
-            Expand-Archive -Path cppwinrt.nupkg -DestinationPath build/cppwinrt-pkg -Force
-          } catch {
-            Write-Host "::warning::C++/WinRT не скачался, сборка пойдёт на SDK-заголовках"
-          }
-
       - name: Configure (CMake, x64)
         shell: pwsh
         run: |
-          # Генератор не задаём жёстко: пусть CMake возьмёт установленную
-          # Visual Studio (2022 или новее) — иначе сборка падает на раннерах,
-          # где версия другая.
           cmake -S . -B build -A x64 -DCMAKE_BUILD_TYPE=Release 2>&1 |
             Tee-Object -FilePath configure.log
           if ($LASTEXITCODE -ne 0) {
             Get-Content configure.log -Tail 40 | ForEach-Object { Write-Host "::error::$($_)" }
             exit 1
-          }
-
-      - name: Which C++/WinRT headers
-        shell: pwsh
-        run: |
-          if (Test-Path build/cppwinrt-generated/winrt/base.h) {
-            $files = Get-ChildItem build/cppwinrt-generated/winrt -Filter *.h
-            $names = ($files | Select-Object -First 12 -ExpandProperty Name) -join ", "
-            Write-Host "::notice::C++/WinRT: сгенерировано $($files.Count) заголовков: $names"
-          } else {
-            Write-Host "::notice::C++/WinRT: заголовки из Windows SDK (генерация не удалась)"
           }
 
       - name: Build
