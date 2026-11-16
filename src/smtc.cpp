@@ -274,7 +274,9 @@ MediaState SmtcClient::Poll() {
     // Скорость воспроизведения и возможность перемотки.
     try {
         auto info = session.GetPlaybackInfo();
-        const double rate = info.PlaybackRate();
+        // PlaybackRate в API — необязательное значение (IReference<double>).
+        const auto rateRef = info.PlaybackRate();
+        const double rate = rateRef ? rateRef.Value() : 1.0;
         st.playbackRate = (rate > 0.05 && rate < 8.0) ? rate : 1.0;
         auto controls = info.Controls();
         st.canSeek = controls.IsPlaybackPositionEnabled() && st.durationMs > 0;
