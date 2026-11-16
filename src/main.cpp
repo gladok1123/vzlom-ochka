@@ -352,12 +352,13 @@ std::wstring FormatTime(int64_t ms) {
 
 // Экстраполированная позиция: SMTC опрашивается раз в 400 мс, а ползунок
 // должен ехать плавно — добавляем прошедшее время, если играет.
-int64_t CurrentPositionMs(const MediaState& st) {
+int64_t CurrentPositionMs(const MediaState& st,
+                          std::chrono::steady_clock::time_point sampledAt) {
     int64_t pos = st.positionMs;
     if (st.isPlaying && st.durationMs > 0) {
         auto now = std::chrono::steady_clock::now();
         int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                              now - g_stateTime)
+                              now - sampledAt)
                               .count();
         pos += elapsed;
         if (pos > st.durationMs)
@@ -527,9 +528,11 @@ void Render() {
     Layout L = ComputeLayout();
 
     MediaState st;
+    std::chrono::steady_clock::time_point sampledAt;
     {
         std::lock_guard<std::mutex> lk(g_stateMutex);
         st = g_state;
+        sampledAt = g_stateTime;
     }
 
     // Обложка: передекодировать, если версия сменилась.
@@ -632,7 +635,7 @@ void Render() {
         DrawIconRefresh(L.sourceBtn, hoverSource ? g_d2d.whiteBrush.Get() : g_d2d.dimBrush.Get());
 
         // --- Прогресс ---
-        int64_t pos = CurrentPositionMs(st);
+        int64_t pos = CurrentPositionMs(st, sampledAt);
         float frac = (st.durationMs > 0)
                          ? static_cast<float>(pos) / static_cast<float>(st.durationMs)
                          : 0.0f;
