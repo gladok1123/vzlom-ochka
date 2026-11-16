@@ -43,6 +43,8 @@ target_link_libraries(YandexMusicPlayer PRIVATE
     ole32
     shell32
     uuid
+    # Точки входа WinRT (RoGetActivationFactory, RoOriginateLanguageException).
+    windowsapp
 )
 
 # Релиз по умолчанию: /O2, без отладочных символов в exe.
