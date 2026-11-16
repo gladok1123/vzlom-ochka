@@ -179,7 +179,6 @@ bool CreateDeviceResources() {
             DWRITE_TRIMMING trimming{};
             trimming.granularity = DWRITE_TRIMMING_GRANULARITY_CHARACTER;
             trimming.delimiter = 0;
-            trimming.sign = 0x2026; // символ «…» — просто кодовая точка
             f->SetTrimming(&trimming, ellipsis.Get());
         }
         f->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
@@ -579,7 +578,7 @@ void Render() {
             DWRITE_FONT_STRETCH_NORMAL, 12.0f, L"", hintFmt.GetAddressOf());
         if (hintFmt) {
             hintFmt->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP);
-            hintFmt->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_LEADING);
+            hintFmt->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
             DrawTextBlock(g_d2d.rt.Get(),
                 L"Откройте music.yandex.ru в браузере и нажмите Play — "
                 L"плеер подхватит трек автоматически.",
@@ -593,8 +592,10 @@ void Render() {
             g_d2d.rt->CreateLayer(layer.GetAddressOf());
             Microsoft::WRL::ComPtr<ID2D1RoundedRectangleGeometry> geo;
             g_d2d.factory->CreateRoundedRectangleGeometry(coverRR, geo.GetAddressOf());
-            layer->PushClip(geo.Get(), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
-                            D2D1::Point2F(0, 0));
+            // Слой с геометрической маской = обложка со скруглёнными углами.
+            D2D1_LAYER_PARAMETERS layerParams = D2D1::LayerParameters(
+                D2D1::InfiniteRect(), geo.Get(), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            g_d2d.rt->PushLayer(layerParams, layer.Get());
             D2D1_SIZE_F bmpSize = g_d2d.coverBitmap->GetSize();
             // Вписать битмап в квадрат обложки с сохранением пропорций (cover).
             float dstW = L.cover.right - L.cover.left;
@@ -606,7 +607,7 @@ void Render() {
             float dy = L.cover.top + (dstH - drawH) * 0.5f;
             g_d2d.rt->DrawBitmap(g_d2d.coverBitmap.Get(),
                                  D2D1::RectF(dx, dy, dx + drawW, dy + drawH));
-            layer->PopClip();
+            g_d2d.rt->PopLayer();
         } else {
             // Плейсхолдер: тёмный квадрат + нота.
             DrawRoundedRect(coverRR, g_d2d.trackBrush.Get(), true);
@@ -1108,7 +1109,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
             AppendMenuW(menu, MF_STRING, 2, L"Выход");
             SetForegroundWindow(hwnd);
-            int cmd = TrackPopupMenuW(menu, TPM_RETURNCMD | TPM_LEFTALIGN,
+            int cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_LEFTALIGN,
                                       pt.x, pt.y, 0, hwnd, nullptr);
             DestroyMenu(menu);
             if (cmd == 1) {

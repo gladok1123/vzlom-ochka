@@ -134,7 +134,13 @@ SmtcClient::Session SmtcClient::FindSession(const std::wstring& appId) {
     if (!manager_)
         return nullptr;
     try {
-        for (auto const& s : manager_.GetSessions()) {
+        // Индексный обход вместо range-for: у WinRT-коллекций begin()/end()
+        // объявлены с auto-возвратом, и MSVC 14.5x спотыкается на них при
+        // инстанцировании в шаблоне (C3779).
+        auto sessions = manager_.GetSessions();
+        const uint32_t count = sessions.Size();
+        for (uint32_t i = 0; i < count; ++i) {
+            auto s = sessions.GetAt(i);
             if (ToWString(s.SourceAppUserModelId()) == appId)
                 return s;
         }
@@ -155,9 +161,12 @@ SmtcClient::Session SmtcClient::PickSession(Manager& manager) {
             return cur;
     } catch (...) {
     }
-    // 3) Первая играющая сессия.
+    // 3) Первая играющая сессия, 4) иначе — просто первая доступная.
     try {
-        for (auto const& s : manager.GetSessions()) {
+        auto sessions = manager.GetSessions();
+        const uint32_t count = sessions.Size();
+        for (uint32_t i = 0; i < count; ++i) {
+            auto s = sessions.GetAt(i);
             try {
                 if (s.GetPlaybackInfo().PlaybackStatus() ==
                     GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing)
@@ -165,9 +174,8 @@ SmtcClient::Session SmtcClient::PickSession(Manager& manager) {
             } catch (...) {
             }
         }
-        // 4) Любая сессия.
-        for (auto const& s : manager.GetSessions())
-            return s;
+        if (count > 0)
+            return sessions.GetAt(0);
     } catch (...) {
     }
     return nullptr;
@@ -181,17 +189,18 @@ MediaState SmtcClient::Poll() {
     Manager manager = manager_;
     std::vector<Session> sessions;
     try {
-        for (auto const& s : manager.GetSessions())
+        auto all = manager.GetSessions();
+        const uint32_t count = all.Size();
+        for (uint32_t i = 0; i < count; ++i) {
+            auto s = all.GetAt(i);
             sessions.push_back(s);
+            try {
+                st.availableSources.push_back(ToWString(s.SourceAppUserModelId()));
+            } catch (...) {
+            }
+        }
     } catch (...) {
         return st;
-    }
-
-    for (auto const& s : sessions) {
-        try {
-            st.availableSources.push_back(ToWString(s.SourceAppUserModelId()));
-        } catch (...) {
-        }
     }
 
     Session session = PickSession(manager);
@@ -357,8 +366,10 @@ std::wstring SmtcClient::CycleSource() {
         return {};
     std::vector<std::wstring> sources;
     try {
-        for (auto const& s : manager_.GetSessions())
-            sources.push_back(ToWString(s.SourceAppUserModelId()));
+        auto sessions = manager_.GetSessions();
+        const uint32_t count = sessions.Size();
+        for (uint32_t i = 0; i < count; ++i)
+            sources.push_back(ToWString(sessions.GetAt(i).SourceAppUserModelId()));
     } catch (...) {
         return {};
     }
