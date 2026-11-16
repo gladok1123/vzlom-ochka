@@ -1062,7 +1062,7 @@ void Render() {
     g_d2d.rt->Clear(D2D1::ColorF(0.07f, 0.07f, 0.09f, 1.0f));
 
     if (g_anim.active)
-        RenderTransition(g_anim.t);
+        RenderTransition(g_anim.expanding ? g_anim.t : 1.0f - g_anim.t);
     else if (g_mode == Mode::Expanded)
         RenderExpandedBar();
     else
@@ -1100,30 +1100,16 @@ void DoPlayPause() { PostCommand(Cmd::PlayPause); }
 void DoNext() { PostCommand(Cmd::Next); }
 void DoPrev() { PostCommand(Cmd::Prev); }
 
-// Запасной вариант, если SMTC-команда не прошла: системные медиа-клавиши.
-void SendMediaKey(WORD vk) {
-    INPUT in[2]{};
-    in[0].type = INPUT_KEYBOARD;
-    in[0].ki.wVk = vk;
-    in[1].type = INPUT_KEYBOARD;
-    in[1].ki.wVk = vk;
-    in[1].ki.dwFlags = KEYEVENTF_KEYUP;
-    SendInput(2, in, sizeof(INPUT));
-}
-
 void ExecuteCommand(const Command& c) {
     switch (c.type) {
     case Cmd::PlayPause:
-        if (!g_smtc.PlayPause())
-            SendMediaKey(VK_MEDIA_PLAY_PAUSE);
+        g_smtc.PlayPause();
         break;
     case Cmd::Next:
-        if (!g_smtc.Next())
-            SendMediaKey(VK_MEDIA_NEXT_TRACK);
+        g_smtc.Next();
         break;
     case Cmd::Prev:
-        if (!g_smtc.Previous())
-            SendMediaKey(VK_MEDIA_PREV_TRACK);
+        g_smtc.Previous();
         break;
     case Cmd::Seek:
         g_smtc.Seek(c.arg);
@@ -1230,6 +1216,8 @@ void ApplyTopmost(bool on) {
     else
         SetWindowPos(g_hwnd, on ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    if (!on && g_mode == Mode::Mini && !g_desktopWidget)
+        ApplyDesktopWidget(true, true);
     g_settings.topmost = on;
     settings::Save(g_settings);
     InvalidateRect(g_hwnd, nullptr, FALSE);
