@@ -219,8 +219,9 @@ MediaState SmtcClient::Poll() {
                 (info.PlaybackStatus() ==
                  GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing);
             auto controls = info.Controls();
-            st.canPlayPause = controls.IsPlayPauseEnabled() ||
-                              controls.IsPlayEnabled() || controls.IsPauseEnabled();
+            // IsPlayPauseEnabled в API нет: play и pause — отдельные
+            // возможности (IsPlayEnabled / IsPauseEnabled).
+            st.canPlayPause = controls.IsPlayEnabled() || controls.IsPauseEnabled();
             st.canNext = controls.IsNextEnabled();
             st.canPrev = controls.IsPreviousEnabled();
         } catch (...) {
@@ -335,13 +336,9 @@ bool SmtcClient::Seek(int64_t positionMs) {
         Session s = PickSession(manager_);
         if (!s)
             return false;
-        // TryChangePlaybackPositionAsync принимает TimeSpan (100-нс тики).
-        // Периоды у
-        // std::chrono::milliseconds и TimeSpan разные, поэтому duration_cast.
-        using winrt::Windows::Foundation::TimeSpan;
-        TimeSpan ts = std::chrono::duration_cast<TimeSpan>(
-            std::chrono::milliseconds(positionMs));
-        s.TryChangePlaybackPositionAsync(ts).get();
+        // TryChangePlaybackPositionAsync принимает число 100-нс тиков,
+        // то есть миллисекунды, умноженные на 10 000.
+        s.TryChangePlaybackPositionAsync(positionMs * 10000).get();
         return true;
     } catch (...) {
         return false;
