@@ -125,8 +125,11 @@ if(CPPWINRT_GENERATE)
                 RESULT_VARIABLE _gen_res
                 OUTPUT_VARIABLE _gen_out
                 ERROR_VARIABLE _gen_out)
-            if(NOT _gen_res EQUAL 0)
-                message(STATUS "C++/WinRT: генератор вернул ${_gen_res}: ${_gen_out}")
+            list(LENGTH _inputs _inputs_len)
+            message(STATUS "C++/WinRT: входов ${_inputs_len}, код возврата ${_gen_res}")
+            if(_gen_out)
+                string(SUBSTRING "${_gen_out}" 0 600 _gen_head)
+                message(STATUS "C++/WinRT output: ${_gen_head}")
             endif()
         else()
             message(STATUS "C++/WinRT: Windows.winmd не найден")
