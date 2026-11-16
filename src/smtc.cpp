@@ -265,7 +265,7 @@ bool SmtcClient::PlayPause() {
         Session s = PickSession(manager_);
         if (!s)
             return false;
-        s.TryPlayPauseAsync().get();
+        s.TryTogglePlayPauseAsync().get();
         return true;
     } catch (...) {
         return false;
@@ -335,12 +335,13 @@ bool SmtcClient::Seek(int64_t positionMs) {
         Session s = PickSession(manager_);
         if (!s)
             return false;
-        // TrySeekAsync принимает TimeSpan (100-нс тики). Периоды у
+        // TryChangePlaybackPositionAsync принимает TimeSpan (100-нс тики).
+        // Периоды у
         // std::chrono::milliseconds и TimeSpan разные, поэтому duration_cast.
         using winrt::Windows::Foundation::TimeSpan;
         TimeSpan ts = std::chrono::duration_cast<TimeSpan>(
             std::chrono::milliseconds(positionMs));
-        s.TrySeekAsync(ts).get();
+        s.TryChangePlaybackPositionAsync(ts).get();
         return true;
     } catch (...) {
         return false;
