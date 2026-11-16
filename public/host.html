@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f4f7f6">
+    <meta name="description" content="Панель владельца для согласованного показа экрана.">
+    <title>Экран рядом — панель владельца</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/app.css">
+    <script src="/host.js" defer></script>
+  </head>
+  <body class="host-page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Экран рядом">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <rect x="3" y="4" width="26" height="19" rx="5" stroke="currentColor" stroke-width="2.4" />
+            <path d="M12 28h8M16 23v5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+            <path d="m13 10 7 3.5-7 3.5v-7Z" fill="currentColor" />
+          </svg>
+        </span>
+        <span class="brand-name">экран <strong>рядом</strong></span>
+      </a>
+      <div id="connection-badge" class="topbar-note"><span class="status-dot status-dot-muted"></span><span id="connection-text">Подключаем локальную панель…</span></div>
+    </header>
+
+    <main class="owner-shell">
+      <section class="owner-heading">
+        <p class="eyebrow"><span class="eyebrow-line"></span> ПАНЕЛЬ ВЛАДЕЛЬЦА</p>
+        <h1>Вы решаете,<br><span>что увидит гость.</span></h1>
+        <p class="intro-copy">Ничего не передаётся, пока вы сами не выберете экран и не разрешите запрос на просмотр.</p>
+      </section>
+
+      <div class="owner-grid">
+        <section class="owner-card session-card" aria-labelledby="session-title">
+          <div class="owner-card-heading">
+            <div class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-9Z" stroke="currentColor" stroke-width="1.7"/><path d="M9 22h6m-3-3v3M8 9h8m-8 3h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            </div>
+            <div><h2 id="session-title">Приглашение</h2><p>Отправьте ссылку и код только нужному человеку.</p></div>
+          </div>
+
+          <div class="invite-block">
+            <div class="invite-label-row"><label>Адрес для гостя</label><span id="tunnel-status" class="mini-status"><span class="status-dot status-dot-muted"></span><span id="tunnel-text">Ожидаем Cloudflare Tunnel</span></span></div>
+            <div class="copy-field"><input id="public-url" type="text" readonly value="Запускаем временный туннель…" aria-label="Публичная ссылка для гостя"><button id="copy-link" class="copy-button" type="button" disabled aria-label="Скопировать ссылку"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="6" width="9" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M13 6V4.5A1.5 1.5 0 0 0 11.5 3h-7A1.5 1.5 0 0 0 3 4.5v9A1.5 1.5 0 0 0 4.5 15H7" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
+            <div class="invite-label-row code-label-row"><label>Код доступа</label><span>одноразовый на эту сессию</span></div>
+            <div class="code-copy-row"><strong id="session-code" class="session-code">•••••-•••••</strong><button id="copy-code" class="button button-secondary button-compact" type="button" disabled>Скопировать код</button></div>
+            <p class="subtle-note">В ссылке нет кода доступа. Не пересылайте эту локальную панель: её адрес содержит ключ владельца.</p>
+          </div>
+        </section>
+
+        <section class="owner-card share-card" aria-labelledby="share-title">
+          <div class="owner-card-heading">
+            <div class="card-icon card-icon-teal" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4.5" width="17" height="12.5" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 20h8m-4-3v3m-4-11 3.2 1.8L8 13.5V9Zm7 .5h2m-2 3h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div><h2 id="share-title">Показ экрана</h2><p>Браузер откроет системный выбор окна или экрана.</p></div>
+          </div>
+          <div class="share-state-row"><span id="share-indicator" class="share-indicator"></span><div><strong id="share-state-title">Показ выключен</strong><p id="share-state-copy">Сначала нажмите кнопку и выберите, чем поделиться.</p></div></div>
+          <div class="share-actions"><button id="start-share" class="button button-primary" type="button" disabled><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 4.5 16 10l-9 5.5v-11Z" fill="currentColor"/></svg><span>Начать показ экрана</span></button><button id="stop-share" class="button button-danger" type="button" hidden><span class="stop-square"></span>Остановить показ</button></div>
+          <div id="local-preview-card" class="local-preview-card" hidden><div class="local-preview-heading"><span class="live-indicator"></span><strong>Ваш локальный предпросмотр</strong><span>виден только вам</span></div><video id="local-preview" autoplay muted playsinline></video></div>
+        </section>
+
+        <section class="owner-card access-card" aria-labelledby="access-title">
+          <div class="owner-card-heading">
+            <div class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M3.8 19.5v-1.1a5.2 5.2 0 0 1 10.4 0v1.1m3.1-8.9a3.2 3.2 0 1 0 0-6.4m.9 9.1a5.2 5.2 0 0 1 2 4.1v1.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            </div>
+            <div><h2 id="access-title">Запросы на просмотр</h2><p>Каждого гостя нужно одобрить отдельно.</p></div>
+          </div>
+          <div id="request-empty" class="request-empty"><span class="empty-pulse"></span><p>Пока нет запросов.<br><strong>Здесь появится имя гостя.</strong></p></div>
+          <div id="request-panel" class="request-panel" hidden>
+            <div class="request-profile"><div class="avatar-mark" aria-hidden="true">?</div><div><span class="request-kicker">ЗАПРОС ОТ</span><strong id="request-name">Гость</strong></div><span class="new-request-tag">НОВЫЙ</span></div>
+            <p class="request-copy">Если вы знаете этого человека, разрешите ему видеть выбранный экран. Управлять компьютером он не сможет.</p>
+            <div class="request-actions"><button id="approve-viewer" class="button button-primary" type="button">Разрешить просмотр</button><button id="deny-viewer" class="button button-secondary" type="button">Отклонить</button></div>
+          </div>
+          <div id="viewer-panel" class="viewer-panel" hidden><span class="live-indicator"></span><div><strong id="approved-name">Гость</strong><p id="approved-copy">Ожидает, пока вы включите показ экрана.</p></div><span class="approved-tag">РАЗРЕШЁН</span></div>
+          <p id="owner-feedback" class="owner-feedback" role="status" aria-live="polite" hidden></p>
+        </section>
+
+        <aside class="safety-card">
+          <div class="safety-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 19 6v5.2c0 4.4-2.9 7.6-7 9.3-4.1-1.7-7-4.9-7-9.3V6l7-2.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 8v4m0 3h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+          <div><strong>Вы сохраняете контроль</strong><p>Показ запускается только по вашему действию. Вы выбираете окно или экран в системном диалоге и можете остановить трансляцию в любой момент. Удалённого управления и записи нет.</p></div>
+        </aside>
+      </div>
+
+      <p class="owner-footnote">После закрытия панели сессия завершится. Для нового подключения запустите программу заново и сообщите новый код.</p>
+    </main>
+    <footer class="site-footer"><span>ЭКРАН РЯДОМ</span><span>Сессия одноразовая · один гость · только просмотр</span></footer>
+  </body>
+</html>

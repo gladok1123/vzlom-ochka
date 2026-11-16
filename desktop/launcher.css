@@ -1,0 +1,16 @@
+.desktop-launcher .desktop-shell { padding-top: 54px; }
+.desktop-launcher .intro-block { margin-bottom: 28px; }
+.desktop-launcher .intro-block h1 { font-size: clamp(34px, 5.5vw, 46px); }
+.desktop-launcher .desktop-card { padding-bottom: 22px; }
+.desktop-launcher .desktop-card .card-heading { padding-bottom: 20px; }
+.desktop-launcher .join-form { padding-top: 21px; }
+.desktop-launcher #tunnel-url { font-size: 12px; }
+.desktop-launcher #session-code { letter-spacing: .13em; }
+.desktop-launcher #connect-state { margin-top: 2px; }
+.desktop-launcher .privacy-card { margin-top: 16px; }
+.desktop-launcher .site-footer { min-height: 52px; }
+
+@media (max-width: 520px) {
+  .desktop-launcher .desktop-shell { padding-top: 38px; }
+  .desktop-launcher .intro-block h1 { font-size: 34px; }
+}

@@ -1,0 +1,54 @@
+{
+  "name": "ekran-ryadom-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.cjs",
+  "description": "Настольный клиент просмотра экрана для Windows и Linux",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "node scripts/sync-assets.cjs && electron .",
+    "package:win": "node scripts/sync-assets.cjs && electron-builder --win nsis --x64",
+    "package:linux": "node scripts/sync-assets.cjs && electron-builder --linux AppImage --x64"
+  },
+  "devDependencies": {
+    "electron": "45.3.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "ru.ekranryadom.viewer",
+    "productName": "Экран рядом",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "connection-utils.cjs",
+      "launcher.html",
+      "launcher.js",
+      "launcher.css",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Network"
+    }
+  }
+}
